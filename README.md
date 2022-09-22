@@ -1,2 +1,3 @@
 # tft-smart-display
-A TFT smart display with WiFi
+
+A TFT smart display with WiFi.
