@@ -1,19 +1,69 @@
-int led = LED_BUILTIN;
+#include <Arduino.h>
+#include <HTTPClient.h>
+#include <WiFi.h>
+
+#include "arduino_secrets.h"
+
+const char *ssid = SECRET_SSID;
+const char *pass = SECRET_PASS;
+
+WiFiMulti WiFiMulti;
+
+const int led = LED_BUILTIN;
+
+bool connected = false;
 
 void setup() {
-  // Some boards work best if we also make a serial connection
-  Serial.begin(115200);
+    Serial.begin(115200);
 
-  // set LED to be an output pin
-  pinMode(led, OUTPUT);
+    pinMode(led, OUTPUT);
+    digitalWrite(led, HIGH);
+
+    WiFi.mode(WIFI_STA);
+    WiFiMulti.addAP(ssid, pass);
 }
 
 void loop() {
-  // Say hi!
-  Serial.println("Hello!");
-  
-  digitalWrite(led, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(500);                // wait for a half second
-  digitalWrite(led, LOW);    // turn the LED off by making the voltage LOW
-  delay(500);                // wait for a half second
+    if (WiFiMulti.run() == WL_CONNECTED) {
+        if (!connected) {
+            connected = true;
+            Serial.println("WiFi connected!");
+            fetch_https();
+        }
+    } else {
+        if (connected) {
+            connected = false;
+            Serial.println("WiFi connection lost!");
+        }
+    }
+
+    int blink_delay = connected ? 1000 : 500;
+    digitalWrite(led, HIGH);
+    delay(blink_delay);
+    digitalWrite(led, LOW);
+    delay(blink_delay);
+}
+
+void fetch_https(void) {
+    HTTPClient https;
+    https.setInsecure();
+    Serial.print("[HTTPS] begin...\n");
+    if (https.begin("https://jigsaw.w3.org/HTTP/connection.html")) {
+        Serial.print("[HTTPS] GET...\n");
+        int httpCode = https.GET();
+        if (httpCode > 0) {
+            Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
+            if (httpCode == HTTP_CODE_OK ||
+                httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+                String payload = https.getString();
+                Serial.println(payload);
+            }
+        } else {
+            Serial.printf("[HTTPS] GET... failed, error: %s\n",
+                          https.errorToString(httpCode).c_str());
+        }
+        https.end();
+    } else {
+        Serial.printf("[HTTPS] Unable to connect\n");
+    }
 }
