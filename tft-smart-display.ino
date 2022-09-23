@@ -1,13 +1,17 @@
 #include <Arduino.h>
 #include <HTTPClient.h>
+#include <NTPClient.h>
 #include <WiFi.h>
+#include <WiFiUdp.h>
 
 #include "arduino_secrets.h"
 
 const char *ssid = SECRET_SSID;
 const char *pass = SECRET_PASS;
 
-WiFiMulti WiFiMulti;
+WiFiMulti wifi_client;
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, -7 * 3600);
 
 const int led = LED_BUILTIN;
 
@@ -20,15 +24,17 @@ void setup() {
     digitalWrite(led, HIGH);
 
     WiFi.mode(WIFI_STA);
-    WiFiMulti.addAP(ssid, pass);
+    wifi_client.addAP(ssid, pass);
 }
 
 void loop() {
-    if (WiFiMulti.run() == WL_CONNECTED) {
+    if (wifi_client.run() == WL_CONNECTED) {
         if (!connected) {
             connected = true;
             Serial.println("WiFi connected!");
+
             fetch_https();
+            fetch_ntp();
         }
     } else {
         if (connected) {
@@ -42,6 +48,13 @@ void loop() {
     delay(blink_delay);
     digitalWrite(led, LOW);
     delay(blink_delay);
+}
+
+void fetch_ntp(void) {
+    timeClient.begin();
+    timeClient.update();
+
+    Serial.println(timeClient.getFormattedTime());
 }
 
 void fetch_https(void) {
