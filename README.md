@@ -10,4 +10,4 @@ Use `./flash.sh` to compile and upload the sketch.
 
 ### Libraries:
 
-* NTPClient 3.2.1
+* <TBD>
