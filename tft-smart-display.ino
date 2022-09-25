@@ -10,51 +10,48 @@ const char *pass = SECRET_PASS;
 
 WiFiMulti wifi_client;
 
-const int led = LED_BUILTIN;
-
-bool connected = false;
-
 void setup() {
     Serial.begin(115200);
 
-    pinMode(led, OUTPUT);
-    digitalWrite(led, HIGH);
+    pinMode(LED_BUILTIN, OUTPUT);
+    toggle_led();
 
+    // Connect to WiFi.
+    Serial.println("Connecting to WiFi...");
     WiFi.mode(WIFI_STA);
     wifi_client.addAP(ssid, pass);
+    wifi_client.run();
+    toggle_led();
+
+    // Start time service client.
+    Serial.println("Fetching current time...");
+    NTP.begin("pool.ntp.org", "time.nist.gov");
+    NTP.waitSet();
+    toggle_led();
 }
 
 void loop() {
-    if (wifi_client.run() == WL_CONNECTED) {
-        if (!connected) {
-            connected = true;
-            Serial.println("WiFi connected!");
-
-            NTP.begin("pool.ntp.org", "time.nist.gov");
-            NTP.waitSet();
-
-            fetch_https();
-        }
-    } else {
-        if (connected) {
-            connected = false;
-            Serial.println("WiFi connection lost!");
-        }
+    static bool fetched = false;
+    if (!fetched) {
+        fetched = true;
+        Serial.println("Fetching HTTPS contents...");
+        fetch_https();
     }
 
-    int blink_delay = connected ? 1000 : 500;
-    digitalWrite(led, HIGH);
-    delay(blink_delay);
-    digitalWrite(led, LOW);
-    delay(blink_delay);
+    delay(1000);
+    toggle_led();
 
-    if (connected) {
-        time_t now = time(nullptr) - 7 *3600;
-        struct tm timeinfo;
-        localtime_r(&now, &timeinfo);
-        Serial.print("Current time: ");
-        Serial.print(asctime(&timeinfo));
-    }
+    time_t now = time(nullptr) - 7 * 3600;
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+    Serial.print("Current time: ");
+    Serial.print(asctime(&timeinfo));
+}
+
+void toggle_led(void) {
+    static bool on = false;
+    on = !on;
+    digitalWrite(LED_BUILTIN, on ? HIGH : LOW);
 }
 
 void fetch_https(void) {
